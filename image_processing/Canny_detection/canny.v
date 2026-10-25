@@ -26,7 +26,7 @@ module canny(
   input i_HSYNC,
   input i_VSYNC,
   input i_BLANK,
-  output [14:0] canny_in,
+  input [14:0] canny_in,
   output reg H_SYNC,
   output reg V_SYNC,
   output reg BLANK,
@@ -96,7 +96,7 @@ matrix_generator
               is_edge <= 1'b0;
             end
           end
-          2'b10: begin
+          2'b01: begin
             if (o_matrix22[10:0] >= o_matrix13[10:0] && o_matrix22[10:0] >= o_matrix31[10:0]) begin
               is_edge <= 1'b1;
             end

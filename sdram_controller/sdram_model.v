@@ -1062,7 +1062,7 @@ module sdram_model_plus (Dq, Addr, Ba, Clk, Cke, Cs_n, Ras_n, Cas_n, We_n, Dqm,D
             else
                 $fdisplay(sdram_data,"%0d    %0h",aa,Bank3[bb]);
               end                        
-          $fclose("sdram_data.txt"); 
+          $fclose(sdram_data); 
           
           sdram_mem=$fopen("sdram_mem.txt");
           for(cc=0;cc<4*(mem_sizes+1);cc=cc+1)
@@ -1077,7 +1077,7 @@ module sdram_model_plus (Dq, Addr, Ba, Clk, Cke, Cs_n, Ras_n, Cas_n, We_n, Dqm,D
             else
                 $fdisplay(sdram_mem,"%0h",Bank3[ee]);
               end                        
-          $fclose("sdram_mem.txt");        
+          $fclose(sdram_mem);        
      
       end        
 

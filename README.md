@@ -1,5 +1,19 @@
 # Image-Processing
-Github: https://github.com/ykqiu/image-processing  
+
+> **项目来源 / Provenance**
+>
+> 本仓库是开源项目 **[ykqiu/Image-Processing](https://github.com/ykqiu/image-processing)** 的二次开发版本（derived work），**不是原创项目**。原始 RTL 设计版权归原作者 ykqiu 所有。
+>
+> | 项目 | 说明 |
+> |------|------|
+> | **上游来源** | [ykqiu/Image-Processing](https://github.com/ykqiu/image-processing)（作者：ykqiu） |
+> | **原始内容** | ISP_TOP 及各图像处理模块 RTL、SDRAM/VGA 控制器、README 插图，均来自上游仓库 |
+> | **本仓库新增** | `sim/` 周期精确仿真验证体系（Icarus Verilog + Python/cocotb，12 条流程全绿）、`docs/HANDOFF.md` 验证交接文档、`sim/ip/` 行为级 IP 模型 |
+> | **本仓库修改** | 修复 RGB2YUV 的 RGB565→RGB888 高位复制、`canny.v` 两处 RTL bug（详见 `docs/HANDOFF.md`） |
+> | **许可证** | 上游未附带 LICENSE 文件（未声明开源许可证），原始 RTL 版权归原作者所有；商用或再分发前请先联系原作者 |
+
+**Upstream project**: [ykqiu/Image-Processing](https://github.com/ykqiu/image-processing) — original RTL by ykqiu. This repository is a derived work that adds a cycle-accurate simulation verification suite (`sim/`) and several RTL fixes (see `docs/HANDOFF.md`).
+
 This project is a pipelined image processing in Verilog aimed at FPGA or ASIC where requirements for real-time processing is needed, and where simplicity and LUT usage are more important than maximising the image processing quality.  
 This project is mainly done on Xilinx 7 series (Artix, Kintex) using vivado HLS, but it may also be compatible with other platforms or tools in ASIC/FPGA RTL design.  
 The idea with this project is to process the incoming image from sensor to enhance image quality or extract key information, reducing the complexity and hardware requirement(in contrast to MCU). This project consists of a top module, namely ISP_TOP, which is made up by several sub-modules as follows.  
@@ -79,3 +93,17 @@ Canny operator is a more accurate edge detection method, compared to Sobel detec
 ![image](https://github.com/ykqiu/Image-Processing/blob/main/docs/v2-bee3a70b859a2a0c49a8ff7f78d03cf2_720w.jpg)  
 - Double-threshold filter: it sets two thresholds, maxVal and minVal, respectively. Any pixel greater than maxVal is detected as an edge, and pixel lower than minval is detected as a non-edge. For a pixel in the middle, if it is adjacent to a pixel determined to be an edge, it is determined to be an edge; otherwise, it is a non-edge.  
 ![image](https://github.com/ykqiu/Image-Processing/blob/main/docs/v2-d55a6eb3add17b3c53c6d68c210cb157_720w.jpg)  
+
+## Simulation & Verification (sim/)
+
+仓库附带一套基于 **Icarus Verilog + Python** 的仿真验证体系（见 `sim/` 目录），环境要求：Icarus Verilog 12.0（必须 `-g2012`）、Python 3.x + numpy。验证方法论为"周期精确软件副本"：Python 逐寄存器复刻 RTL 时序，与仿真 dump 逐拍比对，要求 max_diff = 0。完整验证历史与遗留问题详见 `docs/HANDOFF.md`（按时间倒序更新）。
+
+主要入口：
+
+| 命令 | 覆盖范围 | 状态 |
+|------|----------|------|
+| `python sim/run_all.py` | 汇总跑全部 12 条已接入流程（golden、filters、histogram 冒烟、waveform、probe、RGB2YUV、sobel/canny 阈值路径、point-ops 四模块、ISP chain 等） | ✅ 12/12 |
+| `python sim/run_iverilog_all.py` | 纯 iverilog 冒烟：4 个编译/仿真测试（RGB2YUV waveform、histogram、filters standalone、ISP_TOP 全系统含 SDRAM 乒乓） | ✅ 4/4 |
+| `python sim/run_pointops_cocotb.py` | LOG / EMBOSS / HISTOGRAM / HISTOGRAM_EQ 四模块周期精确对照（含自建 `blk_mem_gen_0/1` 行为模型与 log LUT 生成）。已接入 `run_all.py` 第 11 条流程 | ✅ 四模块 43848 拍 max_diff=0 |
+
+> 注：旧的 Verilog 测试台路径 `sim/run_pointops.py` + `sim/tb_pointops.v` 已被 cocotb 方案取代（其 PART 1 曾三次卡在采样相位对齐，见 HANDOFF 2026-08-03 章节），保留仅作历史参考，请勿接入回归。

@@ -319,11 +319,21 @@ module sdram_ctrl(
       end
     end
 
+  // wr_en must align WITH the WRITE command (data on DQ the same cycle the
+  // SDRAM samples the write), so drive it directly from the state instead
+  // of deriving it from wr_ack (which adds a 1-cycle lag and made the first
+  // word appear a cycle late -> aliased writes 0,2,2,4,4...).
+  // WR_PRE is included so DQ already holds word0 one cycle before the
+  // WRITE command: the SDRAM samples DQ on the command edge, while the
+  // wr_fifo pops word1 on that same edge (rd_en = wr_ack asserted in
+  // WRITE), so the sampled and the next word never collide.
   always @(posedge clk or negedge rst_n) begin
       if(!rst_n) begin
         wr_en <= 1'b0;
       end
-      else if(wr_ack) begin
+      else if(state == WR_PRE ||
+              state == WRITE ||
+              state == WD && state_cnt < br_length - 1) begin
         wr_en <= 1'b1;
       end
       else begin
@@ -335,8 +345,12 @@ module sdram_ctrl(
       if(!rst_n) begin
         wr_ack <= 1'b0;
       end
+      // wr_ack doubles as the wr_fifo read-enable, so it must NOT go high
+      // before the WRITE state: an early rd_en pops the first word out of
+      // the FWFT fifo one cycle early and the write burst loses/aliases data
+      // (observed: 0,2,2,4,4,6,6... instead of 0,1,2,3,4,5,6...).
       else if (br_length == 1) begin
-        if (state == WR_PRE && wr_req) begin
+        if (state == WRITE) begin
           wr_ack <= 1'b1;
         end
         else begin
@@ -344,7 +358,7 @@ module sdram_ctrl(
         end
       end
       else if (br_length == 2) begin
-        if ((state == WR_PRE && wr_req) || state == WRITE) begin
+        if ((state == WRITE) || state == WD) begin
           wr_ack <= 1'b1;
         end
         else begin
@@ -352,9 +366,8 @@ module sdram_ctrl(
         end
       end
       else begin
-        if(   state == WR_PRE && wr_req ||
-              state == WRITE ||
-              state == WD && state_cnt < br_length - 2) begin
+        if(   state == WRITE ||
+              state == WD && state_cnt < br_length - 1) begin
           wr_ack <= 1'b1;
         end
         else begin
@@ -367,11 +380,48 @@ module sdram_ctrl(
       if(!rst_n) begin
         rd_post_d <= 1'b0;
       end
+      // RD_POST only lasts until state_cnt == br_length+1, which is 2
+      // cycles short of the full read-data window (data is valid for
+      // br_length cycles starting at rd_data_cnt==4).  Hold rd_post_d
+      // until the counter passes the window so rd_ack covers every word.
       else if(state == RD_POST) begin
         rd_post_d <= 1'b1;
       end
-      else begin
+      else if(rd_data_cnt >= 4 + br_length) begin
         rd_post_d <= 1'b0;
+      end
+      else begin
+        rd_post_d <= rd_post_d;
+      end
+  end
+
+  // ------------------------------------------------------------------
+  // Read-data window counter.
+  //
+  // The READ command is driven onto the SDRAM bus one cycle after the
+  // controller leaves the READ state (cmd register delay), and the first
+  // data word appears ~3 cycles later (CAS latency 3).  rd_ack must be
+  // asserted for EXACTLY br_length cycles or rd_fifo receives extra words
+  // from the tail of the previous burst (the old code kept rd_ack high
+  // through RD_TERM/RD_POST/rd_post_d, i.e. ~2*br_length cycles, so every
+  // burst wrote br_length stale words into rd_fifo and the read stream
+  // drifted by one word per burst -- visible as rd[48..] reading 0x2f
+  // where 0x30 was expected).
+  //
+  // The counter MUST be gated by the read states: it runs freely between
+  // bursts, and without the state check rd_ack would falsely re-assert
+  // whenever the free-running value lands inside the window, writing junk
+  // into rd_fifo and advancing the read address for free.
+  reg [10:0] rd_data_cnt;
+  always @(posedge clk or negedge rst_n) begin
+      if(!rst_n) begin
+        rd_data_cnt <= 11'b0;
+      end
+      else if(state == READ) begin
+        rd_data_cnt <= 11'b0;
+      end
+      else begin
+        rd_data_cnt <= rd_data_cnt + 1'b1;
       end
   end
 
@@ -379,11 +429,14 @@ module sdram_ctrl(
       if(!rst_n) begin
         rd_ack <= 1'b0;
       end
-      else if(state == RD && state_cnt >= 3 ||
-              state == RD_TERM ||
-              state == RD_POST ||
-              rd_post_d
-              ) begin
+      // Data words are valid from rd_data_cnt==4 (READ cmd issued 1 cycle
+      // after READ state, +3 CAS latency) for exactly br_length cycles;
+      // rd_post_d bridges the tail of the window beyond RD_POST.
+      // NB: rd_ack samples rd_data_cnt one cycle before the fifo samples
+      // rdata, so the effective window is dcnt 4..(3+br_length).
+      else if((state == RD || state == RD_TERM || state == RD_POST ||
+               rd_post_d) &&
+              rd_data_cnt >= 3 && rd_data_cnt < 3 + br_length) begin
               rd_ack <= 1'b1;
       end
       else begin

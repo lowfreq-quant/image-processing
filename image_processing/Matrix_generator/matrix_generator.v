@@ -154,6 +154,31 @@ endgenerate
 reg [1:0] r_i_BLANK;
 reg [8:0] line_cnt;
 reg [9:0] col_cnt;
+reg       r_HSYNC_d;
+reg       r_VSYNC_d;
+// Row/frame-boundary detection: VGA_CTRL drives H_SYNC/V_SYNC LOW-active
+// (H_SYNC=0 for 96 cy per 800-cy line, V_SYNC=0 for 2 cy per 525-line
+// frame), so `i_HSYNC || i_VSYNC` would be 1 for most of the frame and
+// col_cnt would be stuck at 0.  Detect the FALLING edge instead, which
+// marks the start of every line/frame under both protocols.
+always @(posedge clk or negedge rst_n) begin
+    if(!rst_n) begin
+      r_HSYNC_d <= 1'b0;
+    end
+    else begin
+      r_HSYNC_d <= i_HSYNC;
+    end
+end
+always @(posedge clk or negedge rst_n) begin
+    if(!rst_n) begin
+      r_VSYNC_d <= 1'b0;
+    end
+    else begin
+      r_VSYNC_d <= i_VSYNC;
+    end
+end
+wire hsync_fall = r_HSYNC_d & ~i_HSYNC;
+wire vsync_fall = r_VSYNC_d & ~i_VSYNC;
 
 assign data_valid = i_BLANK | r_blank[799];
 
@@ -208,10 +233,14 @@ assign data_valid = i_BLANK | r_blank[799];
       if(!rst_n) begin
         col_cnt <= 10'b0;
       end
+      // hsync/vsync 期间强制归零，避免行消隐期 r_blank[799]=1 导致 col_cnt 误递增
+      else if(hsync_fall || vsync_fall) begin
+        col_cnt <= 10'b0;
+      end
       else if (col_cnt == 639) begin
         col_cnt <= 10'b0;
       end
-      else if(r_i_BLANK[1]) begin
+      else if(data_valid) begin   // aligned to input col (was r_i_BLANK[1])
         col_cnt <= col_cnt + 1'b1;
       end
       else begin
@@ -240,37 +269,37 @@ assign data_valid = i_BLANK | r_blank[799];
       end
       else if(line_cnt == 0) begin
         if (col_cnt == 0) begin
-        o_matrix11 <= i_Y0_r;
-        o_matrix12 <= i_Y0_r;
-        o_matrix13 <= i_Y0_r;
-        o_matrix21 <= i_Y0_r;
-        o_matrix22 <= i_Y0_r;
-        o_matrix23 <= i_Y0_r;
-        o_matrix31 <= i_Y0_r;
-        o_matrix32 <= i_Y0_r;
-        o_matrix33 <= i_Y0_r;
+        o_matrix11 <= i_Y0;
+        o_matrix12 <= i_Y0;
+        o_matrix13 <= i_Y0;
+        o_matrix21 <= i_Y0;
+        o_matrix22 <= i_Y0;
+        o_matrix23 <= i_Y0;
+        o_matrix31 <= i_Y0;
+        o_matrix32 <= i_Y0;
+        o_matrix33 <= i_Y0;
         end
         else if (col_cnt == 639) begin
         o_matrix11 <= o_matrix12;
         o_matrix12 <= o_matrix13;
-        o_matrix13 <= i_Y0_r2;
+        o_matrix13 <= i_Y0;
         o_matrix21 <= o_matrix22;
         o_matrix22 <= o_matrix23;
-        o_matrix23 <= i_Y0_r2;
+        o_matrix23 <= i_Y0;
         o_matrix31 <= o_matrix32;
         o_matrix32 <= o_matrix33;
-        o_matrix33 <= i_Y0_r2;
+        o_matrix33 <= i_Y0;
         end
         else begin
         o_matrix11 <= o_matrix12;
         o_matrix12 <= o_matrix13;
-        o_matrix13 <= i_Y0_r;
+        o_matrix13 <= i_Y0;
         o_matrix21 <= o_matrix22;
         o_matrix22 <= o_matrix23;
-        o_matrix23 <= i_Y0_r;
+        o_matrix23 <= i_Y0;
         o_matrix31 <= o_matrix32;
         o_matrix32 <= o_matrix33;
-        o_matrix33 <= i_Y0_r;
+        o_matrix33 <= i_Y0;
         end
       end
       else if(line_cnt == 1) begin
@@ -281,9 +310,9 @@ assign data_valid = i_BLANK | r_blank[799];
         o_matrix21 <= dout1;
         o_matrix22 <= dout1;
         o_matrix23 <= dout1;
-        o_matrix31 <= i_Y0_r;
-        o_matrix32 <= i_Y0_r;
-        o_matrix33 <= i_Y0_r;
+        o_matrix31 <= i_Y0;
+        o_matrix32 <= i_Y0;
+        o_matrix33 <= i_Y0;
         end
         else if (col_cnt == 639) begin
         o_matrix11 <= o_matrix12;
@@ -294,7 +323,7 @@ assign data_valid = i_BLANK | r_blank[799];
         o_matrix23 <= dout1;
         o_matrix31 <= o_matrix32;
         o_matrix32 <= o_matrix33;
-        o_matrix33 <= i_Y0_r2;
+        o_matrix33 <= i_Y0;
         end
         else begin
         o_matrix11 <= o_matrix12;
@@ -305,7 +334,7 @@ assign data_valid = i_BLANK | r_blank[799];
         o_matrix23 <= dout1;
         o_matrix31 <= o_matrix32;
         o_matrix32 <= o_matrix33;
-        o_matrix33 <= i_Y0_r;
+        o_matrix33 <= i_Y0;
         end
       end
       else if(line_cnt == 480) begin
@@ -340,9 +369,9 @@ assign data_valid = i_BLANK | r_blank[799];
         o_matrix21 <= dout1;
         o_matrix22 <= dout1;
         o_matrix23 <= dout1;
-        o_matrix31 <= i_Y0_r;
-        o_matrix32 <= i_Y0_r;
-        o_matrix33 <= i_Y0_r;
+        o_matrix31 <= i_Y0;
+        o_matrix32 <= i_Y0;
+        o_matrix33 <= i_Y0;
       end
         else if (col_cnt == 639) begin
         o_matrix11 <= o_matrix12;
@@ -353,7 +382,7 @@ assign data_valid = i_BLANK | r_blank[799];
         o_matrix23 <= dout1;
         o_matrix31 <= o_matrix32;
         o_matrix32 <= o_matrix33;
-        o_matrix33 <= i_Y0_r2;
+        o_matrix33 <= i_Y0;
         end
         else begin
         o_matrix11 <= o_matrix12;
@@ -364,7 +393,7 @@ assign data_valid = i_BLANK | r_blank[799];
         o_matrix23 <= dout1;
         o_matrix31 <= o_matrix32;
         o_matrix32 <= o_matrix33;
-        o_matrix33 <= i_Y0_r ;
+        o_matrix33 <= i_Y0 ;
       end
       end
   end

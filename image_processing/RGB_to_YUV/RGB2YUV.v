@@ -42,9 +42,12 @@ module RGB2YUV(
   wire [7:0] R8;
   wire [7:0] G8;
   wire [7:0] B8;
-  assign R8 = {i_display_data[15:11], i_display_data[13:11]};
-  assign G8 = {i_display_data[10:5], i_display_data[6:5]};
-  assign B8 = {i_display_data[4:0], i_display_data[2:0]};
+  // RGB565 -> RGB888 via canonical HIGH-bit replication: R8 = {R5, R5[4:2]},
+  // i.e. R8 = round(R5 * 255/31). (Previously used low-bit replication
+  // {R5, R5[2:0]}, which under-scales midtones by up to 6 LSB.)
+  assign R8 = {i_display_data[15:11], i_display_data[15:13]};
+  assign G8 = {i_display_data[10:5], i_display_data[10:9]};
+  assign B8 = {i_display_data[4:0], i_display_data[4:2]};
   
   always @(posedge clk or negedge rst_n) begin
       if(!rst_n) begin
@@ -53,9 +56,9 @@ module RGB2YUV(
         {r2, g2, b2} <= {16'b0, 16'b0, 16'b0};
       end
       else begin
-        {r0, g0, b0} <= {R8*77, G8*150, B8*29};
-        {r1, g1, b1} <= {R8*43, G8*85, B8*128};
-        {r2, g2, b2} <= {R8*128, G8*107, B8*21};
+        {r0, g0, b0} <= {16'(R8*77), 16'(G8*150), 16'(B8*29)};
+        {r1, g1, b1} <= {16'(R8*43), 16'(G8*85), 16'(B8*128)};
+        {r2, g2, b2} <= {16'(R8*128), 16'(G8*107), 16'(B8*21)};
       end
   end
 

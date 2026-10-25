@@ -122,7 +122,7 @@ sdram_model_plus U_SDRAM_MODEL_PLUS_0
    .Cas_n     ( sdram_cas_n     ),
    .We_n      ( sdram_we_n      ),
    .Dqm       ( 2'b00       ),
-   .Debug     ( 1'b1     ),
+   .Debug     ( 1'b0     ),
    .Dq        ( sdram_data        ));
 
 VGA_CTRL u_VGA_CTRL(
