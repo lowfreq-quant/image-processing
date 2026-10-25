@@ -288,9 +288,7 @@ module sdram_model_plus (Dq, Addr, Ba, Clk, Cke, Cs_n, Ras_n, Cas_n, We_n, Dqm,D
  
         task    initial_sdram; 
  
-         input        data_sign;
-         reg    [3:0]    data_sign;
-          
+         input    [3:0]    data_sign;
                for(dd=0;dd<=mem_sizes;dd=dd+1)
             begin
                 mem_d = {data_sign,data_sign,data_sign,data_sign,data_sign,data_sign,data_sign,data_sign};
