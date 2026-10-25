@@ -31,8 +31,8 @@ import sys
 
 SIM_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(SIM_DIR)
-IVERILOG = r"C:\iverilog\bin\iverilog.exe"
-VVP = r"C:\iverilog\bin\vvp.exe"
+IVERILOG = os.path.join(os.environ.get("IVERILOG_BIN", r"C:\iverilog\bin"), "iverilog.exe")
+VVP = os.path.join(os.environ.get("IVERILOG_BIN", r"C:\iverilog\bin"), "vvp.exe")
 
 SOURCES = [
     os.path.join(SIM_DIR, "ip", "behavioral_blk_mem.v"),

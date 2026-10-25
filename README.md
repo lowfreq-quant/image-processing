@@ -98,6 +98,8 @@ Canny operator is a more accurate edge detection method, compared to Sobel detec
 
 仓库附带一套基于 **Icarus Verilog + Python** 的仿真验证体系（见 `sim/` 目录），环境要求：Icarus Verilog 12.0（必须 `-g2012`）、Python 3.x + numpy。验证方法论为"周期精确软件副本"：Python 逐寄存器复刻 RTL 时序，与仿真 dump 逐拍比对，要求 max_diff = 0。完整验证历史与遗留问题详见 `docs/HANDOFF.md`（按时间倒序更新）。
 
+> 验证套件已独立开源（MIT）：**https://github.com/lowfreq-quant/isp-verification** —— 只含验证代码、不含 RTL，设置 `RTL_ROOT` 指向本仓库即可直接运行。
+
 主要入口：
 
 | 命令 | 覆盖范围 | 状态 |

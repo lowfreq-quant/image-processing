@@ -3,11 +3,11 @@ import subprocess
 import os
 import sys
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = os.environ.get("RTL_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SIM_DIR = os.path.dirname(os.path.abspath(__file__))
 VERILOG_SRC_RGB2YUV = os.path.join(PROJECT_ROOT, "image_processing", "RGB_to_YUV", "RGB2YUV.v")
 VERILOG_SRC_TB = os.path.join(SIM_DIR, "tb_top.v")
-IVERILOG_BIN = r"C:\iverilog\bin"
+IVERILOG_BIN = os.environ.get("IVERILOG_BIN", r"C:\iverilog\bin")
 IVERILOG = os.path.join(IVERILOG_BIN, "iverilog.exe")
 VVP = os.path.join(IVERILOG_BIN, "vvp.exe")
 

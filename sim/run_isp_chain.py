@@ -15,11 +15,13 @@ from cocotb_tools.runner import get_runner
 import gen_pointops_lut
 
 
-os.environ["PATH"] = r"C:\iverilog\bin;" + os.environ.get("PATH", "")
+os.environ["PATH"] = os.environ.get("IVERILOG_BIN", r"C:\iverilog\bin") + ";" + os.environ.get("PATH", "")
 os.environ.setdefault("SIM", "icarus")
 
 ROOT = Path(__file__).resolve().parent
-PRJ = ROOT.parent
+# RTL root = the image-processing checkout. Default: parent of this suite
+# (in-tree layout <project>/sim/). Set RTL_ROOT for out-of-tree use.
+RTL_ROOT = Path(os.environ.get("RTL_ROOT", ROOT.parent))
 
 gen_pointops_lut.main()
 
@@ -28,13 +30,13 @@ verilog_sources = [
     str(ROOT / "ip" / "behavioral_cordic.v"),
     str(ROOT / "ip" / "ip_wrappers.v"),
     str(ROOT / "ip" / "behavioral_blk_mem.v"),
-    str(PRJ / "image_processing" / "Matrix_generator" / "matrix_generator.v"),
-    str(PRJ / "image_processing" / "RGB_to_YUV" / "RGB2YUV.v"),
-    str(PRJ / "image_processing" / "logarithmization" / "LOG.v"),
-    str(PRJ / "image_processing" / "Gaussian_filter" / "gaussian_filter.v"),
-    str(PRJ / "image_processing" / "Median_filter" / "median_filter.v"),
-    str(PRJ / "image_processing" / "Sobel_detection" / "sobel.v"),
-    str(PRJ / "image_processing" / "Canny_detection" / "canny.v"),
+    str(RTL_ROOT / "image_processing" / "Matrix_generator" / "matrix_generator.v"),
+    str(RTL_ROOT / "image_processing" / "RGB_to_YUV" / "RGB2YUV.v"),
+    str(RTL_ROOT / "image_processing" / "logarithmization" / "LOG.v"),
+    str(RTL_ROOT / "image_processing" / "Gaussian_filter" / "gaussian_filter.v"),
+    str(RTL_ROOT / "image_processing" / "Median_filter" / "median_filter.v"),
+    str(RTL_ROOT / "image_processing" / "Sobel_detection" / "sobel.v"),
+    str(RTL_ROOT / "image_processing" / "Canny_detection" / "canny.v"),
     str(ROOT / "tb_isp_chain.v"),
 ]
 

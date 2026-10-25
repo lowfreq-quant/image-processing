@@ -15,20 +15,22 @@ from cocotb_tools.runner import get_runner
 import gen_pointops_lut
 
 
-os.environ["PATH"] = r"C:\iverilog\bin;" + os.environ.get("PATH", "")
+os.environ["PATH"] = os.environ.get("IVERILOG_BIN", r"C:\iverilog\bin") + ";" + os.environ.get("PATH", "")
 os.environ.setdefault("SIM", "icarus")
 
 ROOT = Path(__file__).resolve().parent
-PRJ = ROOT.parent
+# RTL root = the image-processing checkout. Default: parent of this suite
+# (in-tree layout <project>/sim/). Set RTL_ROOT for out-of-tree use.
+RTL_ROOT = Path(os.environ.get("RTL_ROOT", ROOT.parent))
 
 gen_pointops_lut.main()
 
 verilog_sources = [
     str(ROOT / "ip" / "behavioral_blk_mem.v"),
-    str(PRJ / "image_processing" / "logarithmization" / "LOG.v"),
-    str(PRJ / "image_processing" / "Emboss" / "EMBOSS.v"),
-    str(PRJ / "image_processing" / "Histogram" / "HISTOGRAM.v"),
-    str(PRJ / "image_processing" / "Histogram" / "HISTOGRAM_EQ.v"),
+    str(RTL_ROOT / "image_processing" / "logarithmization" / "LOG.v"),
+    str(RTL_ROOT / "image_processing" / "Emboss" / "EMBOSS.v"),
+    str(RTL_ROOT / "image_processing" / "Histogram" / "HISTOGRAM.v"),
+    str(RTL_ROOT / "image_processing" / "Histogram" / "HISTOGRAM_EQ.v"),
     str(ROOT / "tb_pointops_cocotb.v"),
 ]
 
