@@ -104,8 +104,9 @@ Canny operator is a more accurate edge detection method, compared to Sobel detec
 
 | 命令 | 覆盖范围 | 状态 |
 |------|----------|------|
-| `python sim/run_all.py` | 汇总跑全部 12 条已接入流程（golden、filters、histogram 冒烟、waveform、probe、RGB2YUV、sobel/canny 阈值路径、point-ops 四模块、ISP chain 等） | ✅ 12/12 |
+| `python sim/run_all.py` | 汇总跑全部 13 条已接入流程（golden、filters、histogram 冒烟、waveform、probe、RGB2YUV、sobel/canny 阈值路径、point-ops 四模块、ISP chain、SDRAM 回放链路） | ✅ 13/13 |
 | `python sim/run_iverilog_all.py` | 纯 iverilog 冒烟：4 个编译/仿真测试（RGB2YUV waveform、histogram、filters standalone、ISP_TOP 全系统含 SDRAM 乒乓） | ✅ 4/4 |
 | `python sim/run_pointops_cocotb.py` | LOG / EMBOSS / HISTOGRAM / HISTOGRAM_EQ 四模块周期精确对照（含自建 `blk_mem_gen_0/1` 行为模型与 log LUT 生成）。已接入 `run_all.py` 第 11 条流程 | ✅ 四模块 43848 拍 max_diff=0 |
+| `python sim/run_sdram_loop.py` | SDRAM 写→读回放链路：1024 字数据完整性 + 全链路 22725 拍周期精确对照（FSM/命令总线/FIFO 握手/地址/rdata） | ✅ max_diff=0 |
 
 > 注：旧的 Verilog 测试台路径 `sim/run_pointops.py` + `sim/tb_pointops.v` 已被 cocotb 方案取代（其 PART 1 曾三次卡在采样相位对齐，见 HANDOFF 2026-08-03 章节），保留仅作历史参考，请勿接入回归。

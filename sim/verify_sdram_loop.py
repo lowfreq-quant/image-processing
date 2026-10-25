@@ -29,7 +29,9 @@ class FwftFifo:
         self.dout_valid = 0
 
     def count(self):
-        # unsigned 10-bit occupancy: (wr_ptr - rd_ptr) mod depth + dout_valid
+        # Occupancy reported to fifo_ctrl.  The behavioural wrapper exposes
+        # (wr_ptr - rd_ptr) as the count, but its FWFT dout register holds an
+        # extra word that the controller must also see, so include it.
         return ((self.wr_ptr - self.rd_ptr) % self.depth) + self.dout_valid
 
     def full(self):
@@ -42,19 +44,26 @@ class FwftFifo:
         return self.dout_reg
 
     def clock(self, wr_en, din, rd_en):
+        # RTL NBA semantics: the write port commits at the clock edge, but
+        # the read/prefetch logic samples the PRE-EDGE pointers, so a word
+        # written this cycle cannot be seen by the prefetch until the next.
+        old_wr_ptr = self.wr_ptr
+        old_rd_ptr = self.rd_ptr
+        old_dout_valid = self.dout_valid
+
         # write side
         if wr_en and not self.full():
             self.mem[self.wr_ptr] = din
             self.wr_ptr = (self.wr_ptr + 1) % self.depth
         # read side (FWFT pre-fetch)
-        if not self.dout_valid and self.wr_ptr != self.rd_ptr:
-            self.dout_reg = self.mem[self.rd_ptr]
-            self.rd_ptr = (self.rd_ptr + 1) % self.depth
+        if not old_dout_valid and old_wr_ptr != old_rd_ptr:
+            self.dout_reg = self.mem[old_rd_ptr]
+            self.rd_ptr = (old_rd_ptr + 1) % self.depth
             self.dout_valid = 1
-        elif rd_en and self.dout_valid:
-            if self.wr_ptr != self.rd_ptr:
-                self.dout_reg = self.mem[self.rd_ptr]
-                self.rd_ptr = (self.rd_ptr + 1) % self.depth
+        elif rd_en and old_dout_valid:
+            if old_rd_ptr != old_wr_ptr:
+                self.dout_reg = self.mem[old_rd_ptr]
+                self.rd_ptr = (old_rd_ptr + 1) % self.depth
             else:
                 self.dout_valid = 0
 
@@ -459,11 +468,10 @@ def run_model():
         pre-NBA values), THEN clock all blocks."""
         nonlocal rd_valid, rst_n, init_done_t
         # --- record pre-edge values (matches RTL dump semantics) ---
-        rd_s = "zzzz" if sc.dq_is_z else ("%04x" % sc.rdata)
-        lines.append("%d ns %d %d %05s %05x %02s %d %d %d %d %d %d %d %s" % (
-            t, sc.state, sc.state_cnt,
-            format(sc.sdram_cmd, '05b'), sc.sdram_addr,
-            format(sc.sdram_bank, '02b'), sc.wr_ack, sc.rd_ack, sc.wr_en,
+        rd_s = "zzzz" if sc.dq_is_z else ("%0d" % sc.rdata)
+        lines.append("%0d ns %0d %0d %0d %0d %0d %0d %0d %0d %0d %0d %0d %0d %s" % (
+            t, sc.state, sc.state_cnt, sc.sdram_cmd, sc.sdram_addr,
+            sc.sdram_bank, sc.wr_ack, sc.rd_ack, sc.wr_en,
             fc.wr_req, fc.rd_req, fc.sdram_wr_addr, fc.sdram_rd_addr,
             rd_s))
         # --- now clock everything (pre-edge values propagate) ---
@@ -491,7 +499,7 @@ def run_model():
         wr_fifo.clock(wr_en_ext, w_data_in, sc.wr_ack)
         sc.clock(fc.sdram_wr_addr, fc.sdram_rd_addr, wr_req_old, rd_req_old,
                  wdata_old, dq, rd_valid, rst_n)
-        rd_fifo.clock(sc.rd_ack, rdata_old, rd_en_ext)
+        rd_fifo.clock(rd_ack_s, rdata_old, rd_en_ext)
 
     # main loop: one 20ns clock period per iteration; stimulus is applied
     # on the NEGEDGE (tb drives @(negedge clk)), FSM samples on the POSEDGE.
